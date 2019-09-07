@@ -1,37 +1,50 @@
-from flask import Flask, render_template, redirect
+# Import Dependencies 
+from flask import Flask, render_template, redirect 
 from flask_pymongo import PyMongo
-import pandas as pd
 import scrape_mars
+import os
 
-# Create an instance of Flask
+
+# Hidden authetication file
+#import config 
+
+# Create an instance of Flask app
 app = Flask(__name__)
 
-# Use PyMongo to establish Mongo connection
-mongo = PyMongo(app, uri="mongodb://localhost:27017/mars_app")
+#Use flask_pymongo to set up connection through mLab
+app.config["MONGO_URI"] = os.environ.get('authentication')
+mongo = PyMongo(app)
 
-#Route to render index.html template using data from Mongo
+
+
+# Use flask_pymongo to set up mongo connection locally 
+# app.config["MONGO_URI"] = "mongodb://localhost:27017/mars_app"
+# mongo = PyMongo(app)
+
+# Create route that renders index.html template and finds documents from mongo
 @app.route("/")
-def home():
+def home(): 
 
-    # Find one record of data from the mongo database
-    mars_data = mongo.db.collection.find_one()
+    # Find data
+    mars_info = mongo.db.mars_info.find_one()
 
     # Return template and data
+    return render_template("index.html", mars_info=mars_info)
 
-    return render_template("index.html", mars_data=mars_data)
-
-# Route that will trigger the scrape function
+# Route that will trigger scrape function
 @app.route("/scrape")
-def scrape():
+def scrape(): 
 
-    # Run the scrape function
-    mars_data = scrape_mars.scrape()
+    # Run scrapped functions
+    mars_info = mongo.db.mars_info
+    mars_data = scrape_mars.scrape_mars_news()
+    mars_data = scrape_mars.scrape_mars_image()
+    mars_data = scrape_mars.scrape_mars_facts()
+    mars_data = scrape_mars.scrape_mars_weather()
+    mars_data = scrape_mars.scrape_mars_hemispheres()
+    mars_info.update({}, mars_data, upsert=True)
 
-    # Update the Mongo database using update and upsert=True
-    mongo.db.collection.update({}, mars_data, upsert=True)
+    return redirect("/", code=302)
 
-    return render_template('scrape.html')
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == "__main__": 
+    app.run(debug= True)
